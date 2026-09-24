@@ -1,0 +1,65 @@
+{
+    "name": "phattarachai/laravel-db-tunnel",
+    "description": "SSH tunnels for remote database connections in Laravel — machine-wide port allocation, auto-open on first use, and a Laravel Boost skill so Claude can query prod/UAT/QAS read-only without the database port ever facing the internet.",
+    "keywords": [
+        "laravel",
+        "ssh",
+        "tunnel",
+        "database",
+        "port-forwarding",
+        "laravel-boost",
+        "read-only"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Phattarachai",
+            "email": "pc@phattarachai.dev"
+        }
+    ],
+    "require": {
+        "php": "^8.3",
+        "spatie/laravel-package-tools": "^1.16",
+        "illuminate/console": "^12.0|^13.0",
+        "illuminate/contracts": "^12.0|^13.0",
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/process": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Phattarachai\\DbTunnel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Phattarachai\\DbTunnel\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Phattarachai\\DbTunnel\\DbTunnelServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "require-dev": {
+        "larastan/larastan": "^3.10",
+        "laravel/pint": "^1.24",
+        "orchestra/testbench": "^10.8|^11.0",
+        "pestphp/pest": "^3.0"
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "analyse": "vendor/bin/phpstan analyse",
+        "format": "vendor/bin/pint"
+    }
+}
