@@ -69,6 +69,8 @@ class TunnelManager
             '-N',
             '-o', 'BatchMode=yes',
             '-o', 'ExitOnForwardFailure=yes',
+            '-o', 'ControlMaster=no',
+            '-o', 'ControlPath=none',
             '-o', 'ServerAliveInterval='.config('db-tunnel.keepalive.interval', 15),
             '-o', 'ServerAliveCountMax='.config('db-tunnel.keepalive.count_max', 8),
             ...$this->forwardArguments($tunnel),

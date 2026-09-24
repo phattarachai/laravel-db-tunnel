@@ -8,7 +8,7 @@ beforeEach(fn () => Sleep::fake());
 
 function sshArguments(): array
 {
-    return ['ssh', '-f', '-N', '-o', 'BatchMode=yes', '-o', 'ExitOnForwardFailure=yes', '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=8'];
+    return ['ssh', '-f', '-N', '-o', 'BatchMode=yes', '-o', 'ExitOnForwardFailure=yes', '-o', 'ControlMaster=no', '-o', 'ControlPath=none', '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=8'];
 }
 
 it('opens a detached tunnel with -L over the login alias', function () {
@@ -36,6 +36,23 @@ it('leaves out -L when the alias already forwards that port', function () {
     $this->artisan('db:tunnel open claude-qas')->assertSuccessful();
 
     Process::assertRan(fn (PendingProcess $process) => $process->command === [...sshArguments(), 'qas']);
+});
+
+it('never joins or becomes an ssh multiplexing master, even when the alias sets ControlMaster', function () {
+    $this->sshConfig("Host qas\n    ControlMaster auto\n    ControlPath ~/.ssh/cm-%r@%h:%p\n    ControlPersist 10m\n");
+    Process::fake(function () {
+        $this->inspector->ssh(15441, 'qas');
+
+        return Process::result();
+    });
+
+    $this->artisan('db:tunnel open claude-qas')->assertSuccessful();
+
+    Process::assertRan(function (PendingProcess $process) {
+        $options = implode(' ', $process->command);
+
+        return str_contains($options, '-o ControlMaster=no') && str_contains($options, '-o ControlPath=none');
+    });
 });
 
 it('does nothing when the tunnel is already open', function () {
