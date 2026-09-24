@@ -30,7 +30,10 @@ it('dials in the foreground, holds the tunnel, and re-dials when it drops', func
     expect($log[0])->toContain('dialing qas for 127.0.0.1:15441')
         ->and($log[1])->toContain('up — 127.0.0.1:15441 → qas → 127.0.0.1:5432')
         ->and($log[2])->toContain('tunnel dropped');
-    Process::assertRan(fn (PendingProcess $process) => ! in_array('-f', $process->command, true) && end($process->command) === 'qas');
+    Process::assertRan(fn (PendingProcess $process) => ! in_array('-f', $process->command, true)
+        && in_array('ControlMaster=no', $process->command, true)
+        && in_array('ControlPath=none', $process->command, true)
+        && end($process->command) === 'qas');
 });
 
 it('kills a dial whose handshake stalls past the establish timeout', function () {

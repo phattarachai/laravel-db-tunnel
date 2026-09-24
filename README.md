@@ -121,12 +121,17 @@ port with `--port=15444`.
 `open` runs:
 
 ```
-ssh -f -N -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=8 \
-    -L 127.0.0.1:<port>:<remote_host>:<remote_port> <alias>
+ssh -f -N -o BatchMode=yes -o ExitOnForwardFailure=yes -o ControlMaster=no -o ControlPath=none \
+    -o ServerAliveInterval=15 -o ServerAliveCountMax=8 -L 127.0.0.1:<port>:<remote_host>:<remote_port> <alias>
 ```
 
 It then waits until the port is actually listening. If the alias already declares a `LocalForward` for that port,
 `-L` is left out and plain `ssh -f -N <alias>` is used, so dedicated tunnel aliases keep working.
+
+`ControlMaster=no` and `ControlPath=none` keep the tunnel out of SSH connection multiplexing. Without them, an alias
+with `ControlMaster auto` and a live master connection would hand the `-L` forward to that master process and exit, so
+the port would be held by `ssh: … [mux]` instead of a tunnel `db:tunnel` recognises. The tunnel always gets its own
+connection, whatever the alias sets; your interactive `ssh <alias>` sessions keep multiplexing as before.
 
 Tunnel state comes from the process that **listens** on the port (`lsof`/`ss`), not from a connect probe. A connect
 probe such as `nc -z` reports ports open on WSL2 that nothing is listening on. The listener check tells three cases
