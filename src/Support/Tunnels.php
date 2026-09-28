@@ -32,15 +32,18 @@ class Tunnels
     }
 
     /**
-     * @param  array{alias?: string, remote_port?: int, remote_host?: string, port_env?: string, auto_open?: bool, host?: string, user?: string}  $definition
+     * @param  array{alias?: string, remote_port?: int, remote_host?: string, port_env?: string, auto_open?: bool, host?: string, user?: string, gcp_iap?: array{instance?: string, project?: string, zone?: string}, ssh_options?: array<string, string|int>}  $definition
      */
     private function make(string $connection, array $definition): Tunnel
     {
-        throw_unless(isset($definition['alias'], $definition['remote_port']), TunnelException::incomplete($connection));
+        $gcpIap = $this->gcpIap($connection, $definition['gcp_iap'] ?? null);
+        $alias = $definition['alias'] ?? $gcpIap?->instance;
+
+        throw_unless($alias !== null && isset($definition['remote_port']), TunnelException::incomplete($connection));
 
         return new Tunnel(
             connection: $connection,
-            alias: $definition['alias'],
+            alias: $alias,
             localPort: (int) (config('database.connections')[$connection]['port'] ?? 0),
             remoteHost: $definition['remote_host'] ?? '127.0.0.1',
             remotePort: (int) $definition['remote_port'],
@@ -48,7 +51,23 @@ class Tunnels
             autoOpen: $definition['auto_open'] ?? true,
             host: $definition['host'] ?? null,
             user: $definition['user'] ?? null,
+            gcpIap: $gcpIap,
+            extraSshOptions: $definition['ssh_options'] ?? [],
         );
+    }
+
+    /**
+     * @param  array{instance?: string, project?: string, zone?: string}|null  $definition
+     */
+    private function gcpIap(string $connection, ?array $definition): ?GcpIap
+    {
+        if ($definition === null) {
+            return null;
+        }
+
+        throw_unless(isset($definition['instance']), TunnelException::incompleteGcpIap($connection));
+
+        return new GcpIap($definition['instance'], $definition['project'] ?? null, $definition['zone'] ?? null);
     }
 
     private function defaultPortEnv(string $connection): string

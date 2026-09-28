@@ -211,6 +211,7 @@ return [
             'auto_open' => true,
             'host' => '203.0.113.5',      // only used to print a Host block when the alias is missing
             'user' => 'deploy',
+            'ssh_options' => [],          // extra -o options, e.g. ['ProxyJump' => 'bastion']
         ],
     ],
     'auto_open' => env('DB_TUNNEL_AUTO_OPEN'),    // null → local only
@@ -218,6 +219,7 @@ return [
     'registry' => env('DB_TUNNEL_REGISTRY'),      // null → ~/.config/db-tunnel/ports.json
     'ssh_config' => env('DB_TUNNEL_SSH_CONFIG'),  // null → ~/.ssh/config
     'probe' => env('DB_TUNNEL_PROBE', 'auto'),    // auto | lsof | ss
+    'gcp_iap' => ['identity_file' => null],       // null → ~/.ssh/google_compute_engine
     'connect_timeout' => 30,                      // seconds before a detached dial is abandoned
     'wait' => 10,                                 // seconds `open` waits for the port to listen
     'keepalive' => ['interval' => 15, 'count_max' => 8],
@@ -237,6 +239,40 @@ Host qas
     ServerAliveInterval 15
     ServerAliveCountMax 8
 ```
+
+## Google Cloud: SSH only through IAP
+
+When a GCE instance closes port 22 to the internet and admits SSH only through
+[Identity-Aware Proxy](https://cloud.google.com/iap/docs/using-tcp-forwarding), describe the instance instead of
+an alias:
+
+```php
+'claude-qas' => [
+    'remote_port' => 5432,
+    'gcp_iap' => ['instance' => 'qas-db', 'project' => 'acme', 'zone' => 'asia-southeast1-b'],
+    // 'alias' => 'qas-db',  // optional: defaults to the instance name
+],
+```
+
+The tunnel is still a plain `ssh` process, so `status`, `close`, `watch` and the port registry work unchanged. It
+adds three options itself, which means nobody needs a `~/.ssh/config` block for it:
+
+```
+-o ProxyCommand=gcloud compute start-iap-tunnel qas-db 22 --listen-on-stdin --project=acme --zone=asia-southeast1-b
+-o IdentityFile=~/.ssh/google_compute_engine
+-o StrictHostKeyChecking=accept-new
+```
+
+Each developer, once per machine:
+
+1. `gcloud auth login` with an account that has **IAP-secured Tunnel User** on the instance and can publish SSH
+   keys (OS Admin Login, or instance/project metadata write).
+2. `gcloud compute ssh qas-db --project=acme --zone=asia-southeast1-b --tunnel-through-iap`. This creates
+   `~/.ssh/google_compute_engine` and publishes it to the instance.
+
+`db:tunnel doctor` checks both: the key file, and whether `gcloud auth print-access-token` still works. A failed
+`open` names the likely cause, such as an expired gcloud login or an unpublished key. `install` prints an optional
+`Host` block with the same ProxyCommand for interactive `ssh qas-db`.
 
 ## Testing
 

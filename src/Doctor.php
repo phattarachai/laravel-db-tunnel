@@ -3,9 +3,12 @@
 namespace Phattarachai\DbTunnel;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Str;
 use Phattarachai\DbTunnel\Support\Claim;
 use Phattarachai\DbTunnel\Support\EnvFile;
 use Phattarachai\DbTunnel\Support\Finding;
+use Phattarachai\DbTunnel\Support\GcpIap;
 use Phattarachai\DbTunnel\Support\PortClaims;
 use Phattarachai\DbTunnel\Support\PortRegistry;
 use Phattarachai\DbTunnel\Support\SshConfig;
@@ -16,6 +19,10 @@ class Doctor
 {
     /** @var Collection<int, Claim>|null */
     private ?Collection $claimed = null;
+
+    private ?string $gcloudAuthError = null;
+
+    private bool $gcloudAuthChecked = false;
 
     public function __construct(
         private Tunnels $tunnels,
@@ -59,6 +66,8 @@ class Doctor
             $this->registration($tunnel, $project),
             $this->foreignClaims($tunnel, $project),
             $this->alias($tunnel),
+            $this->gcpKey($tunnel),
+            $this->gcloudAuth($tunnel),
             $this->aliasForwards($tunnel, $siblings),
             $this->envExample($tunnel),
         ])->filter();
@@ -90,9 +99,33 @@ class Doctor
 
     private function alias(Tunnel $tunnel): ?Finding
     {
-        return $this->sshConfig->defines($tunnel->alias)
+        return $tunnel->isSelfContained() || $this->sshConfig->defines($tunnel->alias)
             ? null
             : Finding::warn($tunnel->connection, "no `Host {$tunnel->alias}` in {$this->sshConfig->path} — ssh will treat it as a hostname");
+    }
+
+    private function gcpKey(Tunnel $tunnel): ?Finding
+    {
+        return ! $tunnel->gcpIap || is_file(GcpIap::identityFile())
+            ? null
+            : Finding::fail($tunnel->connection, 'no gcloud SSH key at '.GcpIap::identityFile()." — run `{$tunnel->gcpIap->loginCommand()}` once");
+    }
+
+    private function gcloudAuth(Tunnel $tunnel): ?Finding
+    {
+        if (! $tunnel->gcpIap) {
+            return null;
+        }
+
+        if (! $this->gcloudAuthChecked) {
+            $result = Process::timeout(30)->run(['gcloud', 'auth', 'print-access-token', '--quiet']);
+            $this->gcloudAuthError = $result->successful() ? null : (Str::of($result->errorOutput())->trim()->explode("\n")->first() ?: 'gcloud failed');
+            $this->gcloudAuthChecked = true;
+        }
+
+        return $this->gcloudAuthError === null
+            ? null
+            : Finding::fail($tunnel->connection, "gcloud has no usable credentials ({$this->gcloudAuthError}) — run `gcloud auth login`");
     }
 
     /**
