@@ -15,7 +15,12 @@ class TunnelException extends RuntimeException
 
     public static function incomplete(string $connection): self
     {
-        return new self("Tunnel [{$connection}] needs at least `alias` and `remote_port` in config/db-tunnel.php.");
+        return new self("Tunnel [{$connection}] needs at least `alias` (or `gcp_iap.instance`) and `remote_port` in config/db-tunnel.php.");
+    }
+
+    public static function incompleteGcpIap(string $connection): self
+    {
+        return new self("Tunnel [{$connection}] has `gcp_iap` without an `instance` in config/db-tunnel.php.");
     }
 
     public static function noPort(Tunnel $tunnel): self
@@ -28,16 +33,17 @@ class TunnelException extends RuntimeException
         return new self("Port {$tunnel->localPort} for [{$tunnel->connection}] is held by {$listener->describe()}. Run `php artisan db:tunnel doctor`.");
     }
 
-    public static function sshFailed(Tunnel $tunnel, string $error): self
+    public static function sshFailed(Tunnel $tunnel, string $error, string $debugCommand): self
     {
         $error = trim($error) ?: 'no output';
+        $hint = $tunnel->gcpIap?->hintFor($error);
 
-        return new self("ssh {$tunnel->alias} failed for [{$tunnel->connection}]: {$error}. Debug with `ssh -v -N {$tunnel->alias}`.");
+        return new self("ssh {$tunnel->alias} failed for [{$tunnel->connection}]: {$error}.".($hint ? " Likely: {$hint}" : '')." Debug with `{$debugCommand}`.");
     }
 
-    public static function neverListened(Tunnel $tunnel, int $seconds): self
+    public static function neverListened(Tunnel $tunnel, int $seconds, string $debugCommand): self
     {
-        return new self("ssh {$tunnel->alias} started, but nothing listened on 127.0.0.1:{$tunnel->localPort} within {$seconds}s. Debug with `ssh -v -N {$tunnel->alias}`.");
+        return new self("ssh {$tunnel->alias} started, but nothing listened on 127.0.0.1:{$tunnel->localPort} within {$seconds}s. Debug with `{$debugCommand}`.");
     }
 
     public static function portTaken(int $port, string $owners): self

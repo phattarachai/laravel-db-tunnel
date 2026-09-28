@@ -73,9 +73,20 @@ class TunnelManager
             '-o', 'ControlPath=none',
             '-o', 'ServerAliveInterval='.config('db-tunnel.keepalive.interval', 15),
             '-o', 'ServerAliveCountMax='.config('db-tunnel.keepalive.count_max', 8),
+            ...$tunnel->sshOptions(),
             ...$this->forwardArguments($tunnel),
             $tunnel->alias,
         ];
+    }
+
+    /**
+     * A verbose, copy-pasteable login over the same path the tunnel dials.
+     */
+    public function debugCommand(Tunnel $tunnel): string
+    {
+        return collect(['ssh', '-v', '-N', ...$tunnel->sshOptions(), $tunnel->alias])
+            ->map(fn (string $argument) => str_contains($argument, ' ') ? escapeshellarg($argument) : $argument)
+            ->implode(' ');
     }
 
     public function waitUntilOpen(Tunnel $tunnel, int $seconds): bool
@@ -103,14 +114,14 @@ class TunnelManager
     {
         $result = Process::timeout($this->connectTimeout())->run($this->command($tunnel, detached: true));
 
-        throw_if($result->failed(), TunnelException::sshFailed($tunnel, $result->errorOutput()));
+        throw_if($result->failed(), TunnelException::sshFailed($tunnel, $result->errorOutput(), $this->debugCommand($tunnel)));
     }
 
     private function awaitOpen(Tunnel $tunnel): TunnelStatus
     {
         $seconds = (int) config('db-tunnel.wait', 10);
 
-        throw_unless($this->waitUntilOpen($tunnel, $seconds), TunnelException::neverListened($tunnel, $seconds));
+        throw_unless($this->waitUntilOpen($tunnel, $seconds), TunnelException::neverListened($tunnel, $seconds, $this->debugCommand($tunnel)));
 
         return $this->status($tunnel);
     }

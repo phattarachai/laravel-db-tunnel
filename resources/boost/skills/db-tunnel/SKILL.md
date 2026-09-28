@@ -1,7 +1,7 @@
 ---
 name: db-tunnel
-description: 'Use this skill whenever you need to look at data on a remote environment (production, UAT, QAS, staging, logs) in a project using `phattarachai/laravel-db-tunnel` — the `claude-*` database connections reach those databases only through an SSH tunnel, because their ports are closed to the internet. Covers querying them with the Boost `database-query` / `database-schema` tools (`database: claude-<env>`), what to do when a query fails with "connection refused" / "Connection timed out" / "no local port", opening and closing tunnels (`php artisan db:tunnel open|close|status`), fixing port collisions (`db:tunnel doctor`), and adding a new remote connection (`db:tunnel install`). Triggers on: "check production data", "query UAT", "investigate on QAS", "what does prod have for", "claude-prod", "claude-uat", "claude-qas", "db:tunnel", "tunnel is down", "SQLSTATE[08006]", "Connection refused on 127.0.0.1:154", or any read-only investigation against a non-local database.'
-version: 2026.09.24.1
+description: 'Use this skill whenever you need to look at data on a remote environment (production, UAT, QAS, staging, logs) in a project using `phattarachai/laravel-db-tunnel` — the `claude-*` database connections reach those databases only through an SSH tunnel, because their ports are closed to the internet. Covers querying them with the Boost `database-query` / `database-schema` tools (`database: claude-<env>`), what to do when a query fails with "connection refused" / "Connection timed out" / "no local port", opening and closing tunnels (`php artisan db:tunnel open|close|status`), fixing port collisions (`db:tunnel doctor`), and adding a new remote connection (`db:tunnel install`), and Google Cloud boxes reached only through IAP (`gcp_iap`, `gcloud auth login`). Triggers on: "check production data", "query UAT", "investigate on QAS", "what does prod have for", "claude-prod", "claude-uat", "claude-qas", "db:tunnel", "tunnel is down", "SQLSTATE[08006]", "Connection refused on 127.0.0.1:154", or any read-only investigation against a non-local database.'
+version: 2026.09.28.1
 ---
 
 # Remote database access through SSH tunnels
@@ -29,7 +29,9 @@ Run `php artisan db:tunnel open claude-<env>`. It prints the underlying cause.
 
 | Symptom | Cause → fix |
 |---|---|
-| `Permission denied (publickey)` | Your SSH key is not on the box. Ask the user; access is granted outside this project. |
+| `Permission denied (publickey)` | Your SSH key is not on the box. Ask the user; access is granted outside this project. On a `gcp_iap` tunnel the message says which one-time `gcloud compute ssh … --tunnel-through-iap` publishes the key. |
+| `Reauthentication failed` / `gcloud auth login` (`gcp_iap` tunnel) | The gcloud login expired. It is interactive (a browser), so you cannot run it: ask the user to run `! gcloud auth login`, then retry. |
+| `ssh: connect to host … port 22: Operation timed out` | The box closed port 22 to the internet. If it is on Google Cloud behind IAP, give the tunnel a `gcp_iap` entry (below). |
 | `Could not resolve hostname <alias>` | The `Host <alias>` block is missing from `~/.ssh/config`. The command prints one to add; the user adds it. |
 | `port … is held by <process>` | Another process owns the local port. Run `php artisan db:tunnel doctor`, then `db:tunnel install <conn>` to move to a free port. |
 | `has no local port (…_DB_PORT is empty)` | Run `php artisan db:tunnel install <conn>`. |
@@ -51,6 +53,19 @@ Tunnels stay open in the background after use. `php artisan db:tunnel close --al
    `<ENV>_DB_PORT` to `.env`, and adds an empty key to `.env.example`.
 4. The read-only role on the server and the password in `.env` come from the user (the `remote-db-access`
    skill covers creating the role). Never invent credentials.
+
+## Google Cloud boxes reached only through IAP
+
+A tunnel with a `gcp_iap` entry dials through Identity-Aware Proxy:
+
+```php
+'claude-qas' => ['remote_port' => 5432, 'gcp_iap' => ['instance' => 'qas-db', 'project' => 'acme', 'zone' => 'asia-southeast1-b']],
+```
+
+The package adds the IAP `ProxyCommand` and the gcloud key (`~/.ssh/google_compute_engine`) to the ssh command
+itself, so no `~/.ssh/config` block is needed. `alias` defaults to the instance name. Each machine needs
+`gcloud auth login` and one `gcloud compute ssh <instance> --tunnel-through-iap` to publish its key.
+`php artisan db:tunnel doctor` checks both.
 
 ## The app's own database behind a tunnel
 

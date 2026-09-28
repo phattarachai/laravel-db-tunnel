@@ -9,6 +9,7 @@ use Phattarachai\DbTunnel\Exceptions\TunnelException;
 use Phattarachai\DbTunnel\Installer;
 use Phattarachai\DbTunnel\Supervisor;
 use Phattarachai\DbTunnel\Support\Finding;
+use Phattarachai\DbTunnel\Support\GcpIap;
 use Phattarachai\DbTunnel\Support\Paths;
 use Phattarachai\DbTunnel\Support\PortRegistry;
 use Phattarachai\DbTunnel\Support\SshConfig;
@@ -72,7 +73,7 @@ class DbTunnelCommand extends Command
             return true;
         } catch (TunnelException $exception) {
             $this->components->error($exception->getMessage());
-            $this->suggestHostBlock($tunnel);
+            $tunnel->isSelfContained() || $this->suggestHostBlock($tunnel);
 
             return false;
         }
@@ -200,8 +201,25 @@ class DbTunnelCommand extends Command
             return;
         }
 
-        $this->components->warn("`Host {$tunnel->alias}` is not in {$sshConfig->path} — add a login alias like:");
-        $this->line($this->hostBlock($tunnel));
+        $tunnel->isSelfContained()
+            ? $this->components->info("{$tunnel->connection} dials {$tunnel->alias} through IAP and needs no Host block. For an interactive `ssh {$tunnel->alias}`, add:")
+            : $this->components->warn("`Host {$tunnel->alias}` is not in {$sshConfig->path} — add a login alias like:");
+        $this->line($tunnel->gcpIap ? $this->iapHostBlock($tunnel) : $this->hostBlock($tunnel));
+    }
+
+    private function iapHostBlock(Tunnel $tunnel): string
+    {
+        $identityFile = str_replace(Paths::home(), '~', GcpIap::identityFile());
+
+        return <<<SSH
+
+            Host {$tunnel->alias}
+                IdentityFile {$identityFile}
+                IdentitiesOnly yes
+                StrictHostKeyChecking accept-new
+                ProxyCommand {$tunnel->gcpIap?->proxyCommand()}
+
+            SSH;
     }
 
     private function hostBlock(Tunnel $tunnel): string

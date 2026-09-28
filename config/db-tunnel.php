@@ -12,7 +12,8 @@ return [
     | is that connection's `port` — machine-specific, so it lives in .env and
     | `php artisan db:tunnel install` picks it for you.
     |
-    | alias        The ~/.ssh/config Host you already log in with.
+    | alias        The ~/.ssh/config Host you already log in with. Optional with
+    |              gcp_iap, where it defaults to the instance name.
     | remote_port  The database port as seen from the SSH box.
     | remote_host  Where the database listens from the box (default 127.0.0.1).
     | port_env     The .env key holding the local port. Defaults to DB_PORT for
@@ -20,6 +21,11 @@ return [
     |              `claude-` prefix dropped (claude-qas → QAS_DB_PORT).
     | auto_open    Open the tunnel the first time the connection is used.
     | host, user   Only used to print a Host block when `alias` is missing.
+    | gcp_iap      ['instance' => …, 'project' => …, 'zone' => …] for a GCE box
+    |              whose port 22 is closed to the internet: ssh dials through an
+    |              Identity-Aware Proxy ProxyCommand with the gcloud key, so no
+    |              ~/.ssh/config Host block is needed. Requires `gcloud auth login`.
+    | ssh_options  Extra `-o` options, e.g. ['ProxyJump' => 'bastion'].
     |
     */
 
@@ -27,6 +33,10 @@ return [
         // 'claude-prod' => [
         //     'alias' => 'prod',
         //     'remote_port' => 5432,
+        // ],
+        // 'claude-qas' => [
+        //     'remote_port' => 5432,
+        //     'gcp_iap' => ['instance' => 'qas-db', 'project' => 'acme', 'zone' => 'asia-southeast1-b'],
         // ],
     ],
 
@@ -59,6 +69,14 @@ return [
     | reports ports as open that nothing is listening on.
     */
     'probe' => env('DB_TUNNEL_PROBE', 'auto'),
+
+    /*
+    | The key `gcloud compute ssh` creates and publishes to instance metadata.
+    | null → ~/.ssh/google_compute_engine
+    */
+    'gcp_iap' => [
+        'identity_file' => env('DB_TUNNEL_GCP_IDENTITY_FILE'),
+    ],
 
     'connect_timeout' => 30,
 
