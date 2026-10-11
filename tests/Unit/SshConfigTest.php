@@ -20,9 +20,9 @@ it('finds hosts by exact alias token', function () {
 
 it('reads LocalForward ports per host, ignoring comments and case', function () {
     $this->sshConfig(<<<'SSH'
-        Host f11dr-logs
+        Host logs-box
             localforward 15433 127.0.0.1:5433   # logs replica
-        Host nectapharma-dbtunnel
+        Host legacy-dbtunnel
             LocalForward=127.0.0.1:15433 127.0.0.1:5433
         # Host commented
         #   LocalForward 9999 127.0.0.1:1
@@ -32,21 +32,21 @@ it('reads LocalForward ports per host, ignoring comments and case', function () 
 
     $config = new SshConfig("{$this->sandbox}/.ssh/config");
 
-    expect($config->forwardsOf('f11dr-logs'))->toBe([15433])
+    expect($config->forwardsOf('logs-box'))->toBe([15433])
         ->and($config->localForwards()->pluck('port')->all())->toBe([15433, 15433, 16000])
-        ->and($config->localForwards()->pluck('alias')->all())->toBe(['f11dr-logs', 'nectapharma-dbtunnel', '(Match block)']);
+        ->and($config->localForwards()->pluck('alias')->all())->toBe(['logs-box', 'legacy-dbtunnel', '(Match block)']);
 });
 
 it('follows Include relative to the config directory', function () {
     mkdir("{$this->sandbox}/.ssh/conf.d");
-    file_put_contents("{$this->sandbox}/.ssh/conf.d/work.conf", "Host mjreport\n    LocalForward 3307 127.0.0.1:3306\n");
+    file_put_contents("{$this->sandbox}/.ssh/conf.d/work.conf", "Host report-box\n    LocalForward 3307 127.0.0.1:3306\n");
     $this->sshConfig("Include conf.d/*.conf\n\nHost prod\n    HostName 203.0.113.9\n");
 
     $config = new SshConfig("{$this->sandbox}/.ssh/config");
 
-    expect($config->defines('mjreport'))->toBeTrue()
+    expect($config->defines('report-box'))->toBeTrue()
         ->and($config->defines('prod'))->toBeTrue()
-        ->and($config->forwardsOf('mjreport'))->toBe([3307]);
+        ->and($config->forwardsOf('report-box'))->toBe([3307]);
 });
 
 it('treats a missing config as empty', function () {

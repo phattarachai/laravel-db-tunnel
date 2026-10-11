@@ -1,7 +1,7 @@
 ---
 name: db-tunnel
 description: 'Use this skill whenever you need to look at data on a remote environment (production, UAT, QAS, staging, logs) in a project using `phattarachai/laravel-db-tunnel` — the `claude-*` database connections reach those databases only through an SSH tunnel, because their ports are closed to the internet. Covers querying them with the Boost `database-query` / `database-schema` tools (`database: claude-<env>`), what to do when a query fails with "connection refused" / "Connection timed out" / "no local port", opening and closing tunnels (`php artisan db:tunnel open|close|status`), fixing port collisions (`db:tunnel doctor`), and adding a new remote connection (`db:tunnel install`), and Google Cloud boxes reached only through IAP (`gcp_iap`, `gcloud auth login`). Triggers on: "check production data", "query UAT", "investigate on QAS", "what does prod have for", "claude-prod", "claude-uat", "claude-qas", "db:tunnel", "tunnel is down", "SQLSTATE[08006]", "Connection refused on 127.0.0.1:154", or any read-only investigation against a non-local database.'
-version: 2026.09.28.1
+version: 2026.10.11.1
 ---
 
 # Remote database access through SSH tunnels
@@ -51,8 +51,9 @@ Tunnels stay open in the background after use. `php artisan db:tunnel close --al
 2. Add the tunnel to `config/db-tunnel.php`: `'claude-<env>' => ['alias' => '<ssh alias>', 'remote_port' => 5432]`.
 3. Run `php artisan db:tunnel install claude-<env>`. It allocates a machine-wide free port, writes
    `<ENV>_DB_PORT` to `.env`, and adds an empty key to `.env.example`.
-4. The read-only role on the server and the password in `.env` come from the user (the `remote-db-access`
-   skill covers creating the role). Never invent credentials.
+4. The read-only role on the server and the password in `.env` come from the user. The SQL that creates the role
+   is under "A read-only role on the server" in `vendor/phattarachai/laravel-db-tunnel/README.md`. Never invent
+   credentials.
 
 ## Google Cloud boxes reached only through IAP
 

@@ -25,7 +25,7 @@ it('derives the port env from the connection name', function (string $connection
 ]);
 
 it('honours an explicit port_env', function () {
-    config(['db-tunnel.tunnels.claude-logs' => ['alias' => 'f11dr-logs', 'remote_port' => 5433, 'port_env' => 'PROD_LOGS_DB_PORT']]);
+    config(['db-tunnel.tunnels.claude-logs' => ['alias' => 'logs-box', 'remote_port' => 5433, 'port_env' => 'PROD_LOGS_DB_PORT']]);
 
     expect(app(Tunnels::class)->find('claude-logs')->portEnv)->toBe('PROD_LOGS_DB_PORT');
 });

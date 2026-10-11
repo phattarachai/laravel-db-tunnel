@@ -15,15 +15,15 @@ it('is green for an installed tunnel', function () {
 it('reports ports claimed by two ssh aliases on this machine', function () {
     $this->sshConfig(<<<'SSH'
         Host qas
-        Host f11dr-logs
+        Host logs-box
             LocalForward 15433 127.0.0.1:5433
-        Host nectapharma-dbtunnel
+        Host legacy-dbtunnel
             LocalForward 15433 127.0.0.1:5433
         SSH);
     $this->artisan('db:tunnel install claude-qas');
 
     $this->artisan('db:tunnel doctor')
-        ->expectsOutputToContain('port 15433 claimed by Host f11dr-logs (ssh config), Host nectapharma-dbtunnel (ssh config)')
+        ->expectsOutputToContain('port 15433 claimed by Host logs-box (ssh config), Host legacy-dbtunnel (ssh config)')
         ->assertFailed();
 });
 
@@ -38,14 +38,14 @@ it('flags an unregistered port, a missing alias and a foreign listener', functio
 });
 
 it('flags a tunnel with no port and a login alias with its own LocalForward', function () {
-    config(['db-tunnel.tunnels.mj' => ['alias' => 'mjreport', 'remote_port' => 3306]]);
-    config(['database.connections.mj' => ['driver' => 'mysql', 'port' => 15445]]);
+    config(['db-tunnel.tunnels.report' => ['alias' => 'report-box', 'remote_port' => 3306]]);
+    config(['database.connections.report' => ['driver' => 'mysql', 'port' => 15445]]);
     config(['database.connections.claude-qas.port' => null]);
-    $this->sshConfig("Host mjreport\n    LocalForward 3307 127.0.0.1:3306\n");
+    $this->sshConfig("Host report-box\n    LocalForward 3307 127.0.0.1:3306\n");
 
     $this->artisan('db:tunnel doctor')
         ->expectsOutputToContain('QAS_DB_PORT is not set')
-        ->expectsOutputToContain('`Host mjreport` also forwards 3307')
+        ->expectsOutputToContain('`Host report-box` also forwards 3307')
         ->assertFailed();
 });
 
@@ -60,12 +60,12 @@ it('prunes registry entries of deleted projects', function () {
 
 it('accepts a dedicated alias that forwards several of the project tunnels', function () {
     config(['db-tunnel.tunnels' => [
-        'claude-prod' => ['alias' => 'f11dr-prod-db', 'remote_port' => 5432],
-        'claude-logs' => ['alias' => 'f11dr-prod-db', 'remote_port' => 5433, 'port_env' => 'PROD_LOGS_DB_PORT'],
+        'claude-prod' => ['alias' => 'prod-db', 'remote_port' => 5432],
+        'claude-logs' => ['alias' => 'prod-db', 'remote_port' => 5433, 'port_env' => 'PROD_LOGS_DB_PORT'],
     ]]);
     config(['database.connections.claude-prod' => ['driver' => 'pgsql', 'port' => 15441]]);
     config(['database.connections.claude-logs' => ['driver' => 'pgsql', 'port' => 15442]]);
-    $this->sshConfig("Host f11dr-prod-db\n    LocalForward 15441 127.0.0.1:5432\n    LocalForward 15442 127.0.0.1:5433\n");
+    $this->sshConfig("Host prod-db\n    LocalForward 15441 127.0.0.1:5432\n    LocalForward 15442 127.0.0.1:5433\n");
     $this->artisan('db:tunnel install');
 
     $this->artisan('db:tunnel doctor')
