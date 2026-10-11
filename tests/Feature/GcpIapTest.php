@@ -13,25 +13,25 @@ beforeEach(function () {
         'db-tunnel.gcp_iap.identity_file' => "{$this->sandbox}/.ssh/google_compute_engine",
         'db-tunnel.tunnels.claude-qas' => [
             'remote_port' => 5432,
-            'gcp_iap' => ['instance' => 'qas-backend-db', 'project' => 'acme', 'zone' => 'asia-southeast1-b'],
+            'gcp_iap' => ['instance' => 'qas-db', 'project' => 'acme', 'zone' => 'asia-southeast1-b'],
         ],
     ]);
 });
 
 function iapProxyCommand(): string
 {
-    return 'ProxyCommand=gcloud compute start-iap-tunnel qas-backend-db 22 --listen-on-stdin --project=acme --zone=asia-southeast1-b --verbosity=error';
+    return 'ProxyCommand=gcloud compute start-iap-tunnel qas-db 22 --listen-on-stdin --project=acme --zone=asia-southeast1-b --verbosity=error';
 }
 
 it('defaults the alias to the instance and dials through an IAP ProxyCommand with the gcloud key', function () {
     Process::fake(function () {
-        $this->inspector->ssh(15441, 'qas-backend-db');
+        $this->inspector->ssh(15441, 'qas-db');
 
         return Process::result();
     });
 
     $this->artisan('db:tunnel open claude-qas')
-        ->expectsOutputToContain('Open: claude-qas — 127.0.0.1:15441 → qas-backend-db → 127.0.0.1:5432')
+        ->expectsOutputToContain('Open: claude-qas — 127.0.0.1:15441 → qas-db → 127.0.0.1:5432')
         ->assertSuccessful();
 
     Process::assertRan(fn (PendingProcess $process) => array_slice($process->command, -9) === [
@@ -39,14 +39,14 @@ it('defaults the alias to the instance and dials through an IAP ProxyCommand wit
         '-o', "IdentityFile={$this->sandbox}/.ssh/google_compute_engine",
         '-o', 'StrictHostKeyChecking=accept-new',
         '-L', '127.0.0.1:15441:127.0.0.1:5432',
-        'qas-backend-db',
+        'qas-db',
     ]);
 });
 
 it('keeps an explicit alias as the ssh target', function () {
-    config(['db-tunnel.tunnels.claude-qas.alias' => 'f11dr-qas-db']);
+    config(['db-tunnel.tunnels.claude-qas.alias' => 'qas-tunnel']);
 
-    expect(app(Tunnels::class)->find('claude-qas')->alias)->toBe('f11dr-qas-db');
+    expect(app(Tunnels::class)->find('claude-qas')->alias)->toBe('qas-tunnel');
 });
 
 it('rejects gcp_iap without an instance', function () {
@@ -71,10 +71,10 @@ it('points at gcloud auth login when the gcloud token has expired', function () 
 });
 
 it('points at the one-time gcloud login when the key is not on the instance', function () {
-    Process::fake(fn () => Process::result(errorOutput: 'phatchai@qas-backend-db: Permission denied (publickey).', exitCode: 255));
+    Process::fake(fn () => Process::result(errorOutput: 'deploy@qas-db: Permission denied (publickey).', exitCode: 255));
 
     $this->artisan('db:tunnel open claude-qas')
-        ->expectsOutputToContain('run `gcloud compute ssh qas-backend-db --project=acme --zone=asia-southeast1-b --tunnel-through-iap` once')
+        ->expectsOutputToContain('run `gcloud compute ssh qas-db --project=acme --zone=asia-southeast1-b --tunnel-through-iap` once')
         ->assertFailed();
 });
 
@@ -82,11 +82,11 @@ it('needs no Host block and checks the gcloud key and credentials instead', func
     Process::fake(['*' => Process::result('ya29.token')]);
     $this->artisan('db:tunnel install claude-qas')
         ->expectsOutputToContain('needs no Host block')
-        ->expectsOutputToContain('ProxyCommand gcloud compute start-iap-tunnel qas-backend-db 22');
+        ->expectsOutputToContain('ProxyCommand gcloud compute start-iap-tunnel qas-db 22');
 
     $this->artisan('db:tunnel doctor')
         ->doesntExpectOutputToContain('no `Host')
-        ->expectsOutputToContain('127.0.0.1:15441 → qas-backend-db → 127.0.0.1:5432')
+        ->expectsOutputToContain('127.0.0.1:15441 → qas-db → 127.0.0.1:5432')
         ->assertSuccessful();
 });
 

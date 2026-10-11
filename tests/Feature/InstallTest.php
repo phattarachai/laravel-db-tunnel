@@ -23,7 +23,7 @@ it('adopts the current port when it is in range and free', function () {
 it('moves a legacy out-of-range port to the first free port', function () {
     config(['database.connections.claude-qas.port' => 15432]);
     registry()->claim(15440, '/work/other', 'claude-prod', 'prod');
-    $this->sshConfig("Host f11dr-logs\n    LocalForward 15441 127.0.0.1:5433\n");
+    $this->sshConfig("Host logs-box\n    LocalForward 15441 127.0.0.1:5433\n");
     $this->inspector->process(15442, 'postgres');
 
     $this->artisan('db:tunnel install claude-qas')
