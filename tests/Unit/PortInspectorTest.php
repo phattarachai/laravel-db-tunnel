@@ -33,6 +33,31 @@ it('parses ss output, including sockets owned by other users', function () {
         ->and($listeners[5432]->command)->toBe('?');
 });
 
+it('keeps a multibyte lsof command name whole', function () {
+    config(['db-tunnel.probe' => 'lsof']);
+    Process::fake([
+        "'lsof' *" => Process::result("p191\ncเซิร์ฟเวอร์ฅน ✅\nf10\nn127.0.0.1:9000\n"),
+    ]);
+
+    $listeners = (new PortInspector)->listeners();
+
+    expect($listeners->keys()->all())->toBe([9000])
+        ->and($listeners[9000]->command)->toBe('เซิร์ฟเวอร์ฅน ✅');
+});
+
+it('keeps a multibyte ss process name whole', function () {
+    config(['db-tunnel.probe' => 'ss']);
+    Process::fake([
+        "'ss' *" => Process::result('LISTEN 0      128        127.0.0.1:9000      0.0.0.0:*    users:(("ฅน✅",pid=191,fd=5))'),
+    ]);
+
+    $listeners = (new PortInspector)->listeners();
+
+    expect($listeners->keys()->all())->toBe([9000])
+        ->and($listeners[9000]->command)->toBe('ฅน✅')
+        ->and($listeners[9000]->pid)->toBe(191);
+});
+
 it('attaches the process arguments to a single listener', function () {
     config(['db-tunnel.probe' => 'lsof']);
     Process::fake([
