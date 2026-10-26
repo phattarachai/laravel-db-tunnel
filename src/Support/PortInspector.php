@@ -67,7 +67,7 @@ class PortInspector
         $pid = 0;
         $command = '';
 
-        foreach (preg_split('/\R/', trim($output)) ?: [] as $line) {
+        foreach (preg_split('/\R/u', trim($output)) ?: [] as $line) {
             $value = substr($line, 1);
 
             match ($line[0] ?? '') {
@@ -86,7 +86,7 @@ class PortInspector
      */
     private function parseSs(string $output): Collection
     {
-        return collect(preg_split('/\R/', trim($output)) ?: [])
+        return collect(preg_split('/\R/u', trim($output)) ?: [])
             ->filter()
             ->map(fn (string $line) => $this->ssListener($line))
             ->keyBy('port');
