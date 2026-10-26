@@ -1,7 +1,7 @@
 ---
 name: db-tunnel
-description: 'Use this skill whenever you need to look at data on a remote environment (production, UAT, QAS, staging, logs) in a project using `phattarachai/laravel-db-tunnel` — the `claude-*` database connections reach those databases only through an SSH tunnel, because their ports are closed to the internet. Covers querying them with the Boost `database-query` / `database-schema` tools (`database: claude-<env>`), what to do when a query fails with "connection refused" / "Connection timed out" / "no local port", opening and closing tunnels (`php artisan db:tunnel open|close|status`), fixing port collisions (`db:tunnel doctor`), and adding a new remote connection (`db:tunnel install`), and Google Cloud boxes reached only through IAP (`gcp_iap`, `gcloud auth login`). Triggers on: "check production data", "query UAT", "investigate on QAS", "what does prod have for", "claude-prod", "claude-uat", "claude-qas", "db:tunnel", "tunnel is down", "SQLSTATE[08006]", "Connection refused on 127.0.0.1:154", or any read-only investigation against a non-local database.'
-version: 2026.10.11.1
+description: "Query remote databases (prod, UAT, QAS) through this package's SSH tunnels with Boost's database tools, and fix a tunnel that is down. Triggers on \"claude-prod\", \"claude-uat\", \"claude-qas\", \"query prod data\", \"Connection refused on 127.0.0.1:154\", \"db:tunnel\", or /db-tunnel."
+version: 2026.10.26.1
 ---
 
 # Remote database access through SSH tunnels
@@ -9,6 +9,11 @@ version: 2026.10.11.1
 In this project the `claude-*` connections in `config/database.php` point at `127.0.0.1:<port>`. Each port is
 the local end of an SSH tunnel to a remote database. The tunnels are defined in `config/db-tunnel.php`,
 keyed by connection name. Every `claude-*` role is **read-only** (SELECT only).
+
+Use this skill for any read-only look at data on a non-local environment (production, UAT, QAS, staging):
+"check production data", "what does prod have for …", "investigate on QAS". Use it too when a `claude-*`
+query fails with `SQLSTATE[08006]`, "Connection timed out" or "no local port", or the tunnel is down. It also
+covers adding a remote connection and Google Cloud boxes reached only through IAP (`gcp_iap`).
 
 ## Querying a remote environment
 
