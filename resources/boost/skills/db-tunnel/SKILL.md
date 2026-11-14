@@ -15,6 +15,11 @@ Use this skill for any read-only look at data on a non-local environment (produc
 query fails with `SQLSTATE[08006]`, "Connection timed out" or "no local port", or the tunnel is down. It also
 covers adding a remote connection and Google Cloud boxes reached only through IAP (`gcp_iap`).
 
+Copying a whole remote database to local is not a tunnel job. Use `php artisan snapshot:sync` from
+phattarachai/db-snapshot-sync-laravel (1.6+): it runs `snapshot:export` on the box over ssh and streams the
+compressed snapshot back, with no tunnel, token or dump role. Never `pg_dump`/`mysqldump` through a
+`claude-*` tunnel.
+
 ## Querying a remote environment
 
 1. List what is available: `php artisan db:tunnel status`, or Boost's `database-connections`. `status` prints

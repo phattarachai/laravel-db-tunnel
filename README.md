@@ -172,6 +172,13 @@ detaching it. Also set `'auto_open' => false` on that tunnel.
 
 Anything network-specific, such as bringing a VPN up first, stays in the project's own dev script.
 
+## Copying a whole database to local
+
+A tunnel is for querying. To copy a remote database into your local one, use
+[db-snapshot-sync-laravel](https://github.com/phattarachai/db-snapshot-sync-laravel) 1.6+. Its `snapshot:sync`
+runs `snapshot:export` on the box over ssh and streams the box's compressed snapshot back, so it needs no
+tunnel, dump role or token, and the laptop never runs `pg_dump` against production.
+
 ## A read-only role on the server
 
 The `claude-*` role should only ever SELECT. Tunnelled connections arrive from the server's own loopback.
